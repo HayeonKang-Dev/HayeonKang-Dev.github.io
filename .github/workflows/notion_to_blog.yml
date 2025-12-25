@@ -30,3 +30,20 @@ jobs:
           git add _posts/*.md
           git commit -m "Update posts from Notion" || echo "No changes to commit"
           git push origin main
+
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          # _posts 폴더가 있고 파일이 있을 때만 실행
+          if [ -d "_posts" ] && [ "$(ls -A _posts/*.md 2>/dev/null)" ]; then
+            git add _posts/*.md
+            if [ -n "$(git status --porcelain)" ]; then
+              git commit -m "Update posts from Notion"
+              git push origin main
+            else
+              echo "No changes to commit"
+            fi
+          else
+            echo "No files found in _posts to add."
+          fi
