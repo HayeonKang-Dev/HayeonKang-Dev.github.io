@@ -1,22 +1,23 @@
 name: Notion to Jekyll
 on:
-  workflow_dispatch: # 수동 실행 버튼 생성
+  workflow_dispatch:
   schedule:
-    - cron: '0 0 * * *' # 매일 자정에 자동 실행 (선택 사항)
+    - cron: '0 0 * * *'
 
 jobs:
   notion-to-jekyll:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4 # 최신 버전으로 업데이트
 
       - name: Notion to Markdown
-        uses: ddelgu/notion-to-jekyll@v1.0.0
+        # 이 부분이 변경되었습니다 (경로와 버전 수정)
+        uses: ddelgu/notion-to-md-action@v1.0.1 
         with:
           notion_token: ${{ secrets.NOTION_TOKEN }}
           notion_database_id: ${{ secrets.NOTION_DATABASE_ID }}
-          output_path: _posts # Chirpy 테마의 포스트 폴더
+          output_path: _posts
 
       - name: GitHub Push
         uses: ad-m/github-push-action@master
