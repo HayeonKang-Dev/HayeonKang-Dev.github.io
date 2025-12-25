@@ -1,15 +1,10 @@
 import os
 import requests
-from notion_client import Client
-from notion_to_md import NotionToMarkdown
+from notion2md.exporter.block import StringExporter
 
 def sync():
     token = os.environ["NOTION_TOKEN"]
     database_id = os.environ["NOTION_DATABASE_ID"]
-    
-    # 노션 클라이언트와 마크다운 변환기 설정
-    notion = Client(auth=token)
-    n2m = NotionToMarkdown(notion_client=notion)
     
     url = f"https://api.notion.com/v1/databases/{database_id}/query"
     headers = {
@@ -24,7 +19,7 @@ def sync():
     for page in results:
         props = page.get("properties", {})
         
-        # 상태 확인 (이미지처럼 '완료' 기준)
+        # 상태 확인
         st_data = props.get("status") or props.get("Status")
         status_name = ""
         if st_data:
@@ -42,22 +37,21 @@ def sync():
         if not date_prop or not date_prop.get("date"): continue
         date = date_prop["date"]["start"]
 
-        # --- 핵심: 본문 추출 및 변환 ---
-        md_blocks = n2m.page_to_md(page["id"])
-        markdown_content = n2m.to_markdown_string(md_blocks)
+        # --- notion2md를 사용한 본문 추출 ---
+        # StringExporter를 사용하여 페이지 ID를 마크다운 문자열로 변환합니다.
+        markdown_content = StringExporter(block_id=page["id"]).export()
 
         if not os.path.exists("_posts"):
             os.makedirs("_posts")
             
         filename = f"_posts/{date}-{title.replace(' ', '-')}.md"
         
-        # Jekyll 형식에 맞춰 저장
         content = f"---\nlayout: post\ntitle: \"{title}\"\ndate: {date}\n---\n\n"
-        content += markdown_content # 실제 노션 본문 삽입!
+        content += markdown_content
 
         with open(filename, "w", encoding="utf-8") as f:
             f.write(content)
-        print(f"Success: {filename} with content")
+        print(f"Success: {filename}")
 
 if __name__ == "__main__":
     sync()
