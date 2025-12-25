@@ -15,7 +15,7 @@ jobs:
           python-version: '3.x'
 
       - name: Install dependencies
-        run: pip install requests notion-client
+        run: pip install requests notion-client notion-to-md
 
       - name: Run Notion Sync Script
         env:
