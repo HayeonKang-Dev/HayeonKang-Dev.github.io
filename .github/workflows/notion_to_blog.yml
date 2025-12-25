@@ -27,23 +27,17 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add _posts/*.md
-          git commit -m "Update posts from Notion" || echo "No changes to commit"
-          git push origin main
-
-      - name: Commit and Push changes
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          # _posts 폴더가 있고 파일이 있을 때만 실행
-          if [ -d "_posts" ] && [ "$(ls -A _posts/*.md 2>/dev/null)" ]; then
+          
+          # 1. _posts 폴더에 .md 파일이 있는지 먼저 확인
+          if ls _posts/*.md 1> /dev/null 2>&1; then
             git add _posts/*.md
+            # 2. 실제로 변경된 내용(새 글)이 있는지 확인
             if [ -n "$(git status --porcelain)" ]; then
               git commit -m "Update posts from Notion"
               git push origin main
             else
-              echo "No changes to commit"
+              echo "변경사항이 없어 커밋을 생략합니다."
             fi
           else
-            echo "No files found in _posts to add."
-          fi
+            echo "업로드할 마크다운 파일이 없습니다. 노션 상태를 확인하세요."
+          fi # <- 여기서 조건문 종료!
