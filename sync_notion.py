@@ -1,46 +1,56 @@
 import os
-from notion_client import Client
+import requests
 
-notion = Client(auth=os.environ["NOTION_TOKEN"])
-database_id = os.environ["NOTION_DATABASE_ID"]
-
+# 외부 라이브러리 대신 직접 API를 호출하는 더 강력한 방식입니다.
 def sync():
-    # .query() 대신 .query(**{"database_id": database_id, ...}) 형태로 호출하거나
-    # 최신 라이브러리 구조에 맞춰 아래와 같이 수정합니다.
-    results = notion.databases.query(
-        database_id=database_id,
-        filter={
+    token = os.environ["NOTION_TOKEN"]
+    database_id = os.environ["NOTION_DATABASE_ID"]
+    
+    url = f"https://api.notion.com/v1/databases/{database_id}/query"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Notion-Version": "2022-06-28",
+        "Content-Type": "application/json"
+    }
+    filter_data = {
+        "filter": {
             "property": "status",
-            "select": {
-                "equals": "Published"
-            }
+            "select": {"equals": "Published"}
         }
-    )["results"] # .get("results") 대신 ["results"] 사용 권장
+    }
+
+    response = requests.post(url, headers=headers, json=filter_data)
+    
+    if response.status_code != 200:
+        print(f"Error: {response.text}")
+        return
+
+    results = response.json().get("results", [])
 
     for page in results:
-        # 안전한 제목 추출을 위해 리스트 비어있는지 체크 추가
-        title_list = page["properties"]["title"]["title"]
-        if not title_list:
-            continue
+        try:
+            # 제목 추출
+            properties = page.get("properties", {})
+            title_data = properties.get("title", {}).get("title", [])
+            if not title_data: continue
+            title = title_data[0]["plain_text"]
             
-        title = title_list[0]["plain_text"]
-        date_prop = page["properties"]["date"]["date"]
-        if not date_prop:
-            continue
-            
-        date = date_prop["start"]
-        
-        filename = f"_posts/{date}-{title.replace(' ', '-')}.md"
-        
-        content = f"---\nlayout: post\ntitle: \"{title}\"\ndate: {date}\n---\n\n"
-        content += "노션에서 성공적으로 가져온 글입니다!"
-        
-        # _posts 폴더가 없을 경우를 대비해 생성 로직 추가
-        if not os.path.exists("_posts"):
-            os.makedirs("_posts")
-            
-        with open(filename, "w", encoding="utf-8") as f:
-            f.write(content)
+            # 날짜 추출
+            date_data = properties.get("date", {}).get("date", {})
+            if not date_data: continue
+            date = date_data["start"]
+
+            filename = f"_posts/{date}-{title.replace(' ', '-')}.md"
+            content = f"---\nlayout: post\ntitle: \"{title}\"\ndate: {date}\n---\n\n노션 본문 연동 준비 완료!"
+
+            if not os.path.exists("_posts"):
+                os.makedirs("_posts")
+
+            with open(filename, "w", encoding="utf-8") as f:
+                f.write(content)
+            print(f"Successfully created: {filename}")
+        except Exception as e:
+            print(f"Skipping a page due to error: {e}")
 
 if __name__ == "__main__":
     sync()
