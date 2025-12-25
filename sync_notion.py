@@ -1,7 +1,6 @@
 import os
 import requests
 
-# 외부 라이브러리 대신 직접 API를 호출하는 더 강력한 방식입니다.
 def sync():
     token = os.environ["NOTION_TOKEN"]
     database_id = os.environ["NOTION_DATABASE_ID"]
@@ -12,45 +11,54 @@ def sync():
         "Notion-Version": "2022-06-28",
         "Content-Type": "application/json"
     }
-    filter_data = {
-        "filter": {
-            "property": "status",
-            "select": {"equals": "Published"}
-        }
-    }
-
-    response = requests.post(url, headers=headers, json=filter_data)
+    
+    # 필터를 빼고 모든 데이터를 가져와서 파이썬에서 거르는 방식
+    response = requests.post(url, headers=headers)
     
     if response.status_code != 200:
         print(f"Error: {response.text}")
         return
 
     results = response.json().get("results", [])
+    print(f"Total pages found in Notion: {len(results)}")
 
     for page in results:
         try:
-            # 제목 추출
-            properties = page.get("properties", {})
-            title_data = properties.get("title", {}).get("title", [])
-            if not title_data: continue
-            title = title_data[0]["plain_text"]
+            props = page.get("properties", {})
             
-            # 날짜 추출
-            date_data = properties.get("date", {}).get("date", {})
-            if not date_data: continue
-            date = date_data["start"]
+            # 1. 상태(status) 확인 - '완료'인 것만 처리
+            # 노션의 '상태' 속성은 구조가 복잡하므로 안전하게 추출
+            status_obj = props.get("status", {}).get("status") or props.get("status", {}).get("select")
+            status_name = status_obj.get("name") if status_obj else ""
+            
+            if status_name != "완료":
+                continue
 
-            filename = f"_posts/{date}-{title.replace(' ', '-')}.md"
-            content = f"---\nlayout: post\ntitle: \"{title}\"\ndate: {date}\n---\n\n노션 본문 연동 준비 완료!"
+            # 2. 제목 추출
+            title_list = props.get("제목", {}).get("title", [])
+            if not title_list: continue
+            title = title_list[0]["plain_text"]
+            
+            # 3. 날짜 추출
+            date_obj = props.get("Date", {}).get("date", {})
+            if not date_obj: continue
+            date = date_obj.get("start")
 
+            if not date: continue
+
+            # 파일 생성 및 저장
             if not os.path.exists("_posts"):
                 os.makedirs("_posts")
+                
+            filename = f"_posts/{date}-{title.replace(' ', '-')}.md"
+            content = f"---\nlayout: post\ntitle: \"{title}\"\ndate: {date}\n---\n\n본문 내용 테스트"
 
             with open(filename, "w", encoding="utf-8") as f:
                 f.write(content)
             print(f"Successfully created: {filename}")
+            
         except Exception as e:
-            print(f"Skipping a page due to error: {e}")
+            print(f"Error: {e}")
 
 if __name__ == "__main__":
     sync()
