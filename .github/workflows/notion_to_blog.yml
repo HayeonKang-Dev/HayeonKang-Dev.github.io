@@ -1,26 +1,32 @@
 name: Notion to Jekyll
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 0 * * *'
 
 jobs:
   notion-to-jekyll:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4 # 최신 버전으로 업데이트
+        uses: actions/checkout@v4
 
-      - name: Notion to Markdown
-        # 이 부분이 변경되었습니다 (경로와 버전 수정)
-        uses: ddelgu/notion-to-md-action@v1.0.1 
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          notion_token: ${{ secrets.NOTION_TOKEN }}
-          notion_database_id: ${{ secrets.NOTION_DATABASE_ID }}
-          output_path: _posts
+          python-version: '3.x'
 
-      - name: GitHub Push
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: main
+      - name: Install dependencies
+        run: pip install requests notion-client
+
+      - name: Run Notion Sync Script
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+        run: python sync_notion.py
+
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add _posts/*.md
+          git commit -m "Update posts from Notion" || echo "No changes to commit"
+          git push origin main
